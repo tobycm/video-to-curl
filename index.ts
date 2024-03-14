@@ -3,6 +3,7 @@
 import videoToAscii from "ascii-video";
 import { createWriteStream, existsSync, mkdirSync } from "fs";
 import http from "http";
+import { Writable } from "stream";
 
 const allowedMimeTypes = ["video/mp4"];
 
@@ -40,17 +41,23 @@ server.on("request", async (request, response) => {
 
     // check mime later
 
-    const frames = await videoToAscii.create(`./temp/${id}.mp4`, { width: 160 });
+    const output = new Writable({
+      async write(chunk, encoding, callback) {
+        response.write("\x1b[2J");
+        response.write(chunk);
+        await new Promise((resolve) => setTimeout(resolve, 1000 / 15));
+        callback();
+      },
 
-    console.log(frames.length);
+      final(callback) {
+        response.end("\n\nThx for watching!");
+        return callback();
+      },
+    });
 
-    for (const frame of frames) {
-      response.write("\x1b[2J");
-      response.write(frame);
-      await new Promise((resolve) => setTimeout(resolve, 1000 / 15));
-    }
+    videoToAscii.create(`./temp/${id}.mp4`, output, { width: 40 });
 
-    return response.end("\n\nThx for watching!");
+    return;
   }
 
   response.writeHead(404).end("Not found");
