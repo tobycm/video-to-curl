@@ -44,6 +44,8 @@ server.on("request", async (request, response) => {
     const output = new Writable({
       async write(chunk, encoding, callback) {
         response.write("\x1b[2J");
+
+        response.write("\n");
         response.write(chunk);
         await new Promise((resolve) => setTimeout(resolve, 1000 / 15));
         callback();
@@ -55,7 +57,7 @@ server.on("request", async (request, response) => {
       },
     });
 
-    videoToAscii.create(`./temp/${id}.mp4`, output, { width: 40 });
+    videoToAscii.create(`./temp/${id}.mp4`, output, { width: 50 });
 
     return;
   }
