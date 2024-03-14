@@ -1,0 +1,23 @@
+{
+  "name": "video-to-curl",
+  "version": "0.0.1",
+  "description": "Video to curl :b",
+  "main": "index.ts",
+  "scripts": {
+    "start": "bun . --env-file=.env",
+    "dev": "bun --watch . --env-file=.env"
+  },
+  "keywords": [
+    "ascii",
+    "video",
+    "curl"
+  ],
+  "author": "tobycm",
+  "license": "MIT",
+  "dependencies": {
+    "file-type": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.27"
+  }
+}
