@@ -108,7 +108,7 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 		c.Writer.Write([]byte("Processing...\n"))
 		c.Writer.Flush()
 
-		cmd := exec.Command("ffmpeg", "-r", "18", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
+		cmd := exec.Command("ffmpeg", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
 
 		// cmd := fluentffmpeg.NewCommand("").
 		// 	InputPath(filename).
@@ -190,6 +190,10 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 			return
 		}
 
+		go func() {
+			cmd.Wait()
+		}()
+
 		cleanup := func(clientGone bool) {
 			if cmd.Process != nil {
 				cmd.Process.Kill()
@@ -203,8 +207,6 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 			if clientGone {
 				c.Abort()
 			}
-
-			cmd.Wait()
 		}
 
 		done := make(chan bool, 1)
@@ -227,14 +229,9 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 				return
 			default:
 				if len(writer.queue) == 0 {
-					if cmd.ProcessState == nil {
-						continue
-					}
-
-					if cmd.ProcessState.Exited() {
+					if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
 						// fmt.Println("Process exited")
 						done <- true
-						return
 					}
 
 					continue
@@ -244,7 +241,7 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 				c.Writer.Write([]byte("\x1b[2J" + writer.Shift()))
 				c.Writer.Flush()
 
-				time.Sleep(time.Second / 20)
+				time.Sleep(time.Second / 70)
 
 			}
 
