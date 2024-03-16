@@ -2,7 +2,6 @@ package routes
 
 import (
 	"bytes"
-	"fmt"
 	"image/jpeg"
 	"io"
 	"os"
@@ -31,7 +30,7 @@ func (writer *PipeAndAsciifyToQueueWriter) Write(p []byte) (n int, err error) {
 	converter := convert.NewImageConverter()
 	image, err := jpeg.Decode(bytes.NewReader(p))
 	if err != nil {
-		fmt.Println(err.Error())
+		// fmt.Println(err.Error())
 		// ignored
 		return len(p), nil
 	}
@@ -80,7 +79,7 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 				c.JSON(500, gin.H{
 					"message": "Failed to create temp dir",
 				})
-				fmt.Println(err.Error())
+				// fmt.Println(err.Error())
 				return
 			}
 		}
@@ -109,7 +108,7 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 		c.Writer.Write([]byte("Processing...\n"))
 		c.Writer.Flush()
 
-		cmd := exec.Command("ffmpeg", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
+		cmd := exec.Command("ffmpeg", "-r", "18", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
 
 		// cmd := fluentffmpeg.NewCommand("").
 		// 	InputPath(filename).
@@ -142,17 +141,17 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 				}
 
 				if cmd.Process == nil {
-					fmt.Println("Process is nil but array is almost empty! this is no good...")
+					// fmt.Println("Process is nil but array is almost empty! this is no good...")
 					return
 				}
 
-				fmt.Println("Continuing process...")
+				// fmt.Println("Continuing process...")
 
 				if err := cmd.Process.Signal(syscall.SIGCONT); err != nil {
 					c.JSON(500, gin.H{
 						"message": "Failed to continue process",
 					})
-					fmt.Println(err.Error())
+					// fmt.Println(err.Error())
 					return
 				}
 			},
@@ -162,17 +161,17 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 				}
 
 				if cmd.Process == nil {
-					fmt.Println("Process is nil but array is almost full! this is no good...")
+					// fmt.Println("Process is nil but array is almost full! this is no good...")
 					return
 				}
 
-				fmt.Println("Pausing process...")
+				// fmt.Println("Pausing process...")
 
 				if err := cmd.Process.Signal(syscall.SIGSTOP); err != nil {
 					c.JSON(500, gin.H{
 						"message": "Failed to stop process",
 					})
-					fmt.Println(err.Error())
+					// fmt.Println(err.Error())
 					return
 				}
 			},
@@ -180,9 +179,9 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 
 		cmd.Stdout = writer
 
-		fmt.Println(cmd.Args)
+		// fmt.Println(cmd.Args)
 
-		cmd.Stderr = os.Stdout
+		// cmd.Stderr = os.Stdout
 
 		if err := cmd.Start(); err != nil {
 			c.JSON(500, gin.H{
@@ -191,41 +190,66 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 			return
 		}
 
-		go func() {
-			for {
+		cleanup := func(clientGone bool) {
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+
+			if file != nil {
+				file.Close()
+				os.Remove(filename)
+			}
+
+			if clientGone {
+				c.Abort()
+			}
+
+			cmd.Wait()
+		}
+
+		done := make(chan bool, 1)
+
+		for {
+			select {
+			case <-c.Request.Context().Done():
+				// client https://i.imgflip.com/1h2kbp.jpg
+				cleanup(true)
+				return
+
+			case <-done:
+				// fmt.Println("Done")
+				c.Writer.Write([]byte("Thanks for watching!\n"))
+				c.Writer.Flush()
+
+				c.Status(200)
+
+				cleanup(false)
+				return
+			default:
 				if len(writer.queue) == 0 {
 					if cmd.ProcessState == nil {
 						continue
 					}
 
 					if cmd.ProcessState.Exited() {
-						fmt.Println("Process exited")
+						// fmt.Println("Process exited")
+						done <- true
 						return
 					}
 
 					continue
 				}
-				fmt.Println(len(writer.queue))
-				c.Writer.Write([]byte("\x1b[2J\n" + writer.Shift()))
+				// fmt.Println(len(writer.queue))
+
+				c.Writer.Write([]byte("\x1b[2J" + writer.Shift()))
 				c.Writer.Flush()
 
-				time.Sleep(time.Second / 70)
-			}
-		}()
+				time.Sleep(time.Second / 20)
 
-		if err := cmd.Wait(); err != nil {
-			c.JSON(500, gin.H{
-				"message": "Failed to process video",
-			})
-			fmt.Println(err.Error())
-			return
+			}
+
 		}
 
-		fmt.Println("Done")
-		c.Writer.Write([]byte("Thanks for watching!\n"))
-		c.Writer.Flush()
-
-		c.Status(200)
 	})
 
 }
