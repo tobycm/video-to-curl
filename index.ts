@@ -53,7 +53,7 @@ server.on("request", async (request, response) => {
 
     videoToAscii.create(`./temp/${id}.mp4`, output, {
       width: parseInt(url.searchParams.get("width") ?? "50", 10),
-      fps: 15,
+      fps: 10,
     });
 
     response.write("\nProcessed!\nStarting video");
@@ -73,7 +73,7 @@ server.on("request", async (request, response) => {
         response.end("\nThx for watching!\n");
         clearInterval(loop);
       } else response.write("\nBuffering...");
-    }, 1000 / 15);
+    }, 1000 / 10);
 
     return;
   }
