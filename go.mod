@@ -30,6 +30,7 @@ require (
 	github.com/qeesung/image2ascii v1.0.1
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
+	github.com/wader/goutubedl v0.0.0-20240314083254-04eb47cbe876
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
