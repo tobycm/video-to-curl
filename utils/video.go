@@ -1,15 +1,33 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/qeesung/image2ascii/convert"
 )
 
+func ServeVideoWithSubtitle(c *gin.Context, filename string, subtitleFile string, asciiOptions *convert.Options) {
+	serveVideo(c, filename, subtitleFile, asciiOptions)
+}
+
 func ServeVideo(c *gin.Context, filename string, asciiOptions *convert.Options) {
-	cmd := exec.Command("ffmpeg", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
+	serveVideo(c, filename, "", asciiOptions)
+}
+
+func serveVideo(c *gin.Context, filename string, subtitleFile string, asciiOptions *convert.Options) {
+	var cmd *exec.Cmd
+
+	if subtitleFile != "" {
+		cmd = exec.Command("ffmpeg", "-an", "-readrate", "1", "-i", filename, "-vf", "subtitles="+subtitleFile, "-f", "image2pipe", "pipe:1")
+	} else {
+		cmd = exec.Command("ffmpeg", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
+	}
+
+	fmt.Println(strings.Join(cmd.Args, " "))
 
 	// cmd := fluentffmpeg.NewCommand("").
 	// 	InputPath(filename).
@@ -51,6 +69,10 @@ func ServeVideo(c *gin.Context, filename string, asciiOptions *convert.Options) 
 		}
 
 		os.Remove(filename)
+		if subtitleFile != "" {
+			os.Remove(subtitleFile)
+		}
+
 	}
 
 	for {

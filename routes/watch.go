@@ -4,9 +4,12 @@ import (
 	"context"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/qeesung/image2ascii/convert"
@@ -149,13 +152,36 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 			return
 		}
 
-		result, err := goutubedl.New(context.Background(), "https://www.youtube.com/watch?v="+id, goutubedl.Options{})
+		withSubtitles := c.Query("sub")
+		match, _ = regexp.MatchString("^[a-zA-Z0-9_-]*$", withSubtitles)
+		if !match {
+			withSubtitles = ""
+		}
+
+		result, err := goutubedl.New(context.Background(), "https://www.youtube.com/watch?v="+id, goutubedl.Options{DownloadSubtitles: true})
 		if err != nil {
 			log.Fatal(err)
 			c.JSON(500, gin.H{
 				"message": "Failed to fetch video",
 			})
 			return
+		}
+
+		subLangs := make([]string, len(result.Info.Subtitles))
+
+		if withSubtitles != "" {
+			c.Writer.Write([]byte("Available subtitles:\n"))
+
+			i := 0
+			for lang := range result.Info.Subtitles {
+				subLangs[i] = lang
+				i++
+			}
+
+			c.Writer.Write([]byte(strings.Join(subLangs, ", ") + "\n"))
+			c.Writer.Flush()
+
+			time.Sleep(3 * time.Second)
 		}
 
 		c.Writer.Write([]byte("Downloading...\n"))
@@ -180,9 +206,59 @@ func AddWatchRoute(router *gin.RouterGroup, options WatchRouteOptions) {
 		defer f.Close()
 		io.Copy(f, downloadResult)
 
+		subtitleFilename := ""
+
+		if withSubtitles != "" && result.Info.Subtitles[withSubtitles] != nil {
+			var subtitle goutubedl.Subtitle
+
+			for _, s := range result.Info.Subtitles[withSubtitles] {
+				if s.Ext == "vtt" {
+					subtitle = s
+					break
+				}
+			}
+
+			if subtitle.URL == "" {
+				c.Writer.Write([]byte("No subtitles for " + withSubtitles + " found\n"))
+				c.Writer.Flush()
+
+				time.Sleep(3 * time.Second)
+			} else {
+				subtitleFilename = options.TempDir + "/youtube/" + id + "-" + subtitle.Language + "." + subtitle.Ext
+				subtitleFile, err := os.Create(subtitleFilename)
+				if err != nil {
+					log.Fatal(err)
+					c.JSON(500, gin.H{
+						"message": "Failed to create subtitle file",
+					})
+					return
+				}
+				defer subtitleFile.Close()
+
+				response, err := http.Get(subtitle.URL)
+				if err != nil {
+					log.Fatal(err)
+					c.JSON(500, gin.H{
+						"message": "Failed to download subtitle",
+					})
+					return
+				}
+				defer response.Body.Close()
+
+				_, err = io.Copy(subtitleFile, response.Body)
+				if err != nil {
+					log.Fatal(err)
+					c.JSON(500, gin.H{
+						"message": "Failed to write subtitle file",
+					})
+					return
+				}
+			}
+		}
+
 		c.Writer.Write([]byte("Processing...\n"))
 
-		utils.ServeVideo(c, filename, &asciiOptions)
+		utils.ServeVideoWithSubtitle(c, filename, subtitleFilename, &asciiOptions)
 	})
 
 }
