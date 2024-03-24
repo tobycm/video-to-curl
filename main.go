@@ -27,7 +27,9 @@ func runServer() {
 		})
 	})
 
-	routes.AddWatchRoute(root, routes.WatchRouteOptions{
+	watchRoute := root.Group("/watch")
+
+	routes.AddWatchRoute(watchRoute, routes.WatchRouteOptions{
 		TempDir: environment.TempDir,
 	})
 
