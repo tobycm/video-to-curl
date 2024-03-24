@@ -1,10 +1,8 @@
 package utils
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/qeesung/image2ascii/convert"
@@ -27,7 +25,7 @@ func serveVideo(c *gin.Context, filename string, subtitleFile string, asciiOptio
 		cmd = exec.Command("ffmpeg", "-an", "-readrate", "1", "-i", filename, "-f", "image2pipe", "pipe:1")
 	}
 
-	fmt.Println(strings.Join(cmd.Args, " "))
+	// fmt.Println(strings.Join(cmd.Args, " "))
 
 	// cmd := fluentffmpeg.NewCommand("").
 	// 	InputPath(filename).
