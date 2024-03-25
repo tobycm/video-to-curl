@@ -8,9 +8,14 @@ import (
 	"github.com/qeesung/image2ascii/convert"
 )
 
+type AsciiOptions struct {
+	Width  int
+	Height int
+}
+
 type AsciiResponseWriter struct {
 	Context      *gin.Context
-	AsciiOptions *convert.Options
+	AsciiOptions *AsciiOptions
 
 	stop       bool
 	clientGone bool
@@ -18,13 +23,19 @@ type AsciiResponseWriter struct {
 
 func (writer *AsciiResponseWriter) Write(p []byte) (n int, err error) {
 	converter := convert.NewImageConverter()
+
 	image, err := jpeg.Decode(bytes.NewReader(p))
 	if err != nil {
 		// fmt.Println(err.Error())
 		// ignored
 		return len(p), nil
 	}
-	ascii := converter.Image2ASCIIString(image, writer.AsciiOptions)
+
+	ascii := converter.Image2ASCIIString(image, &convert.Options{
+		FixedWidth:  writer.AsciiOptions.Width,
+		FixedHeight: writer.AsciiOptions.Height,
+		Colored:     true,
+	})
 
 	if writer.Context.Writer == nil {
 		return len(p), nil

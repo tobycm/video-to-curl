@@ -5,18 +5,17 @@ import (
 	"os/exec"
 
 	"github.com/gin-gonic/gin"
-	"github.com/qeesung/image2ascii/convert"
 )
 
-func ServeVideoWithSubtitle(c *gin.Context, filename string, subtitleFile string, asciiOptions *convert.Options) {
+func ServeVideoWithSubtitle(c *gin.Context, filename string, subtitleFile string, asciiOptions *AsciiOptions) {
 	serveVideo(c, filename, subtitleFile, asciiOptions)
 }
 
-func ServeVideo(c *gin.Context, filename string, asciiOptions *convert.Options) {
+func ServeVideo(c *gin.Context, filename string, asciiOptions *AsciiOptions) {
 	serveVideo(c, filename, "", asciiOptions)
 }
 
-func serveVideo(c *gin.Context, filename string, subtitleFile string, asciiOptions *convert.Options) {
+func serveVideo(c *gin.Context, filename string, subtitleFile string, asciiOptions *AsciiOptions) {
 	var cmd *exec.Cmd
 
 	if subtitleFile != "" {
